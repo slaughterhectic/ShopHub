@@ -72,30 +72,46 @@ export const HomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen font-sans bg-white">
-      
-      {/* 🎯 Hero Section */}
-      <section className="relative bg-gradient-to-r from-blue-700 to-purple-700 text-white overflow-hidden">
-        <div className="absolute inset-0 bg-black opacity-25 z-0"></div>
-        <div className="relative z-10 max-w-6xl mx-auto px-6 py-32 text-center">
+
+      {/* 🌈 HERO */}
+      <section className="relative h-screen bg-gradient-to-br from-indigo-800 via-purple-700 to-pink-600 overflow-hidden text-white">
+
+        {/* 🔮 Floating Background Blobs */}
+        <div className="absolute w-[400px] h-[400px] bg-pink-500 rounded-full opacity-30 blur-3xl top-32 left-[-100px] animate-pulse"></div>
+        <div className="absolute w-[300px] h-[300px] bg-purple-500 rounded-full opacity-30 blur-3xl top-[20%] right-[-150px] animate-pulse delay-1000"></div>
+
+        {/* 🎯 Hero Content */}
+        <div className="relative z-10 max-w-6xl mx-auto h-full flex flex-col justify-center items-center text-center px-6">
           <motion.h1
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1 }}
-            className="text-5xl md:text-6xl font-bold mb-6 leading-tight"
+            className="text-5xl md:text-7xl font-extrabold leading-tight text-white drop-shadow-lg"
           >
-            Discover Amazing Products
+            Discover&nbsp;
+            <span className="bg-gradient-to-r from-yellow-400 to-red-500 text-transparent bg-clip-text">
+              Next-Level
+            </span>&nbsp;
+            Products
           </motion.h1>
+
           <motion.p
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="text-xl md:text-2xl text-blue-100 mb-10"
+            className="text-xl md:text-2xl text-white/90 mt-6 max-w-3xl"
           >
-            Shop the latest trends with unbeatable prices and fast delivery
+            Elevate your shopping experience with cutting-edge products and fast delivery.
           </motion.p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.7 }}
+            className="mt-10 flex flex-col sm:flex-row gap-4"
+          >
             <Link to="/products">
-              <Button size="lg" className="bg-white text-blue-600 hover:bg-gray-100">
+              <Button size="lg" className="bg-white text-indigo-700 hover:scale-105 hover:bg-gray-100 transition-all shadow-xl">
                 Shop Now
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
@@ -103,17 +119,27 @@ export const HomePage: React.FC = () => {
             <Link to="/products?category=electronics">
               <Button
                 size="lg"
-                variant="outline"
-                className="border-white text-white hover:bg-white hover:text-blue-700"
+                className="bg-black bg-opacity-20 text-white border border-white hover:bg-white hover:text-indigo-700 hover:border-indigo-700 transition-all"
               >
                 Browse Electronics
               </Button>
             </Link>
-          </div>
+          </motion.div>
+        </div>
+
+        {/* ↓ Scroll cue */}
+        <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20">
+          <motion.div
+            animate={{ y: [0, 12, 0] }}
+            transition={{ repeat: Infinity, duration: 2 }}
+            className="text-white text-3xl"
+          >
+            ↓
+          </motion.div>
         </div>
       </section>
 
-      {/* 🚚 Features Section */}
+      {/* 🚚 FEATURES */}
       <section className="py-20 bg-gray-50">
         <div className="max-w-6xl mx-auto px-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10 text-center">
@@ -141,7 +167,7 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* 🌟 Featured Products */}
+      {/* 🌟 FEATURED PRODUCTS */}
       <section className="py-20">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-12">
@@ -183,7 +209,7 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* 🗂️ Categories */}
+      {/* 🗂️ CATEGORIES */}
       <section className="py-20 bg-gray-100">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-12">
@@ -221,28 +247,8 @@ export const HomePage: React.FC = () => {
         </div>
       </section>
 
-      {/* 📰 Newsletter */}
-      <section className="py-20 bg-blue-700 text-white">
-        <div className="max-w-xl mx-auto text-center px-6">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Stay Updated</h2>
-          <p className="text-blue-200 mb-6 text-lg">
-            Subscribe to our newsletter for the latest deals, promotions & updates
-          </p>
-          <form className="flex flex-col sm:flex-row items-center gap-4">
-            <input
-              type="email"
-              placeholder="Enter your email"
-              className="flex-1 px-4 py-3 rounded-lg text-black focus:ring-2 focus:ring-blue-300 outline-none"
-            />
-            <Button
-              type="submit"
-              className="bg-white text-blue-700 hover:bg-blue-50 transition"
-            >
-              Subscribe
-            </Button>
-          </form>
-        </div>
-      </section>
+
+
     </div>
   );
 };

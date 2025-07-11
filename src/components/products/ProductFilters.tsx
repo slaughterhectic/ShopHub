@@ -1,3 +1,5 @@
+// src/components/products/ProductFilters.tsx
+
 import React from 'react';
 import { Filter, X } from 'lucide-react';
 import { ProductFilters as Filters } from '../../types';
@@ -30,7 +32,8 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
     });
   };
 
-  const hasActiveFilters = filters.category || filters.minPrice || filters.maxPrice || filters.search;
+  const hasActiveFilters =
+    filters.category || filters.minPrice || filters.maxPrice || filters.search;
 
   return (
     <>
@@ -39,12 +42,12 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
         <Button
           onClick={onToggle}
           variant="outline"
-          className="w-full justify-center"
+          className="w-full justify-center bg-white border border-gray-300 shadow-sm hover:bg-blue-50 transition"
         >
           <Filter className="w-4 h-4 mr-2" />
           Filters
           {hasActiveFilters && (
-            <span className="ml-2 bg-blue-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+            <span className="ml-2 bg-blue-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
               !
             </span>
           )}
@@ -52,19 +55,16 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
       </div>
 
       {/* Filter Panel */}
-      <div className={`
-        ${isOpen ? 'block' : 'hidden'} lg:block
-        bg-white border border-gray-200 rounded-lg p-6 space-y-6
-      `}>
+      <div
+        className={`${
+          isOpen ? 'block' : 'hidden'
+        } lg:block bg-white border border-gray-200 shadow-md rounded-xl p-6 space-y-6 transition duration-300`}
+      >
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">Filters</h3>
+          <h3 className="text-lg font-bold text-gray-900">Filters</h3>
           <div className="flex items-center space-x-2">
             {hasActiveFilters && (
-              <Button
-                onClick={clearFilters}
-                variant="ghost"
-                size="sm"
-              >
+              <Button onClick={clearFilters} variant="ghost" size="sm">
                 Clear All
               </Button>
             )}
@@ -79,79 +79,88 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
 
         {/* Category Filter */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-3">
+          <label className="block text-sm font-semibold text-gray-800 mb-2">
             Category
           </label>
-          <div className="space-y-2">
-            <label className="flex items-center">
+          <div className="grid gap-2">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer">
               <input
                 type="radio"
                 name="category"
                 checked={!filters.category}
                 onChange={() => handleFilterChange('category', undefined)}
-                className="mr-2"
+                className="accent-blue-600"
               />
-              <span className="text-sm text-gray-700">All Categories</span>
+              All Categories
             </label>
             {categories.map((category) => (
-              <label key={category} className="flex items-center">
+              <label
+                key={category}
+                className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer capitalize"
+              >
                 <input
                   type="radio"
                   name="category"
                   checked={filters.category === category}
                   onChange={() => handleFilterChange('category', category)}
-                  className="mr-2"
+                  className="accent-blue-600"
                 />
-                <span className="text-sm text-gray-700 capitalize">
-                  {category}
-                </span>
+                {category}
               </label>
             ))}
           </div>
         </div>
 
-        {/* Price Range Filter */}
+        {/* Price Range */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-3">
+          <label className="block text-sm font-semibold text-gray-800 mb-2">
             Price Range
           </label>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="flex gap-3">
             <Input
               type="number"
               placeholder="Min"
+              className="rounded-lg px-4 py-2 border border-gray-300 shadow-sm focus:ring focus:ring-blue-200"
               value={filters.minPrice || ''}
-              onChange={(e) => handleFilterChange('minPrice', e.target.value ? Number(e.target.value) : undefined)}
+              onChange={(e) =>
+                handleFilterChange(
+                  'minPrice',
+                  e.target.value ? Number(e.target.value) : undefined
+                )
+              }
             />
             <Input
               type="number"
               placeholder="Max"
+              className="rounded-lg px-4 py-2 border border-gray-300 shadow-sm focus:ring focus:ring-blue-200"
               value={filters.maxPrice || ''}
-              onChange={(e) => handleFilterChange('maxPrice', e.target.value ? Number(e.target.value) : undefined)}
+              onChange={(e) =>
+                handleFilterChange(
+                  'maxPrice',
+                  e.target.value ? Number(e.target.value) : undefined
+                )
+              }
             />
           </div>
         </div>
 
-        {/* Sort Options */}
+        {/* Sort By */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-3">
+          <label className="block text-sm font-semibold text-gray-800 mb-2">
             Sort By
           </label>
           <select
-            value={`${filters.sortBy || 'created_at'}-${filters.sortOrder || 'desc'}`}
+            value={`${filters.sortBy || 'price'}-${filters.sortOrder || 'asc'}`}
             onChange={(e) => {
               const [sortBy, sortOrder] = e.target.value.split('-');
               handleFilterChange('sortBy', sortBy);
               handleFilterChange('sortOrder', sortOrder);
             }}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:ring focus:ring-blue-200 focus:border-blue-500 bg-white text-gray-800"
           >
-            <option value="created_at-desc">Newest First</option>
-            <option value="created_at-asc">Oldest First</option>
-            <option value="name-asc">Name A-Z</option>
-            <option value="name-desc">Name Z-A</option>
-            <option value="price-asc">Price Low to High</option>
-            <option value="price-desc">Price High to Low</option>
-            <option value="rating-desc">Highest Rated</option>
+            <option value="price-asc">Price: Low to High</option>
+            <option value="price-desc">Price: High to Low</option>
+            <option value="rating-desc">Rating: Highest Rated</option>
           </select>
         </div>
       </div>

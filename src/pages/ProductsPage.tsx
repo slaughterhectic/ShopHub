@@ -1,3 +1,5 @@
+// src/pages/ProductsPage.tsx
+
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ProductCard } from '../components/products/ProductCard';
@@ -20,8 +22,8 @@ export const ProductsPage: React.FC = () => {
     search: searchParams.get('search') || undefined,
     minPrice: searchParams.get('minPrice') ? Number(searchParams.get('minPrice')) : undefined,
     maxPrice: searchParams.get('maxPrice') ? Number(searchParams.get('maxPrice')) : undefined,
-    sortBy: (searchParams.get('sortBy') as any) || 'created_at',
-    sortOrder: (searchParams.get('sortOrder') as any) || 'desc',
+    sortBy: (searchParams.get('sortBy') as any) || 'price',
+    sortOrder: (searchParams.get('sortOrder') as any) || 'asc',
     page: Number(searchParams.get('page')) || 1,
     limit: 12,
   });
@@ -59,29 +61,15 @@ export const ProductsPage: React.FC = () => {
         .from('products')
         .select('*', { count: 'exact' });
 
-      // Apply filters
-      if (filters.category) {
-        query = query.eq('category', filters.category);
-      }
-
+      if (filters.category) query = query.eq('category', filters.category);
       if (filters.search) {
         query = query.or(`name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
       }
+      if (filters.minPrice) query = query.gte('price', filters.minPrice);
+      if (filters.maxPrice) query = query.lte('price', filters.maxPrice);
 
-      if (filters.minPrice) {
-        query = query.gte('price', filters.minPrice);
-      }
+      query = query.order(filters.sortBy, { ascending: filters.sortOrder === 'asc' });
 
-      if (filters.maxPrice) {
-        query = query.lte('price', filters.maxPrice);
-      }
-
-      // Apply sorting
-      if (filters.sortBy) {
-        query = query.order(filters.sortBy, { ascending: filters.sortOrder === 'asc' });
-      }
-
-      // Apply pagination
       const from = ((filters.page || 1) - 1) * (filters.limit || 12);
       const to = from + (filters.limit || 12) - 1;
       query = query.range(from, to);
@@ -101,18 +89,16 @@ export const ProductsPage: React.FC = () => {
 
   const updateSearchParams = () => {
     const params = new URLSearchParams();
-    
     Object.entries(filters).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== '') {
-        params.set(key, value.toString());
+        params.set(key, String(value));
       }
     });
-
     setSearchParams(params);
   };
 
   const handleFiltersChange = (newFilters: Filters) => {
-    setFilters(newFilters);
+    setFilters({ ...filters, ...newFilters, page: 1 });
   };
 
   const totalPages = Math.ceil(totalCount / (filters.limit || 12));
@@ -124,20 +110,22 @@ export const ProductsPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Products</h1>
-          <p className="text-gray-600">
+    <div className="min-h-screen bg-gradient-to-b from-white via-gray-50 to-gray-100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="mb-8 text-center">
+          <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-2">
+            Shop All Products
+          </h1>
+          <p className="text-gray-600 text-lg">
             {totalCount} product{totalCount !== 1 ? 's' : ''} found
             {filters.search && ` for "${filters.search}"`}
             {filters.category && ` in ${filters.category}`}
           </p>
         </div>
 
-        <div className="lg:grid lg:grid-cols-4 lg:gap-8">
-          {/* Filters Sidebar */}
-          <div className="lg:col-span-1">
+        <div className="lg:grid lg:grid-cols-4 lg:gap-10">
+          {/* Filter Sidebar */}
+          <div className="lg:col-span-1 bg-white shadow rounded-xl p-4 sticky top-28 z-10">
             <ProductFilters
               filters={filters}
               onFiltersChange={handleFiltersChange}
@@ -147,32 +135,36 @@ export const ProductsPage: React.FC = () => {
             />
           </div>
 
-          {/* Products Grid */}
-          <div className="lg:col-span-3">
+          {/* Product Section */}
+          <div className="lg:col-span-3 mt-10 lg:mt-0">
             {loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
                 {[...Array(12)].map((_, i) => (
-                  <div key={i} className="bg-white rounded-lg h-96 animate-pulse"></div>
+                  <div
+                    key={i}
+                    className="h-96 bg-gradient-to-br from-gray-200/60 to-white rounded-xl animate-pulse shadow-inner"
+                  />
                 ))}
               </div>
             ) : products.length > 0 ? (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                  {products.map((product) => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+                  {products.map(product => (
                     <ProductCard key={product.id} product={product} />
                   ))}
                 </div>
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                  <div className="flex items-center justify-center space-x-2">
+                  <div className="flex items-center justify-center flex-wrap gap-2">
                     <Button
                       onClick={() => handlePageChange(currentPage - 1)}
                       disabled={currentPage <= 1}
-                      variant="outline"
-                      size="sm"
+                      variant="ghost"
+                      size="icon"
+                      className="rounded-full"
                     >
-                      <ChevronLeft className="w-4 h-4" />
+                      <ChevronLeft />
                     </Button>
 
                     {[...Array(Math.min(5, totalPages))].map((_, i) => {
@@ -183,8 +175,8 @@ export const ProductsPage: React.FC = () => {
                         <Button
                           key={page}
                           onClick={() => handlePageChange(page)}
-                          variant={currentPage === page ? 'primary' : 'outline'}
                           size="sm"
+                          variant={page === currentPage ? 'default' : 'outline'}
                         >
                           {page}
                         </Button>
@@ -194,24 +186,24 @@ export const ProductsPage: React.FC = () => {
                     <Button
                       onClick={() => handlePageChange(currentPage + 1)}
                       disabled={currentPage >= totalPages}
-                      variant="outline"
-                      size="sm"
+                      variant="ghost"
+                      size="icon"
+                      className="rounded-full"
                     >
-                      <ChevronRight className="w-4 h-4" />
+                      <ChevronRight />
                     </Button>
                   </div>
                 )}
               </>
             ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-600 text-lg mb-4">No products found</p>
-                <p className="text-gray-500 mb-6">
-                  Try adjusting your filters or search terms
+              <div className="text-center py-20 bg-white rounded-xl shadow-md">
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">
+                  No products found
+                </h2>
+                <p className="text-gray-600 mb-6">
+                  Try resetting your filters or search terms
                 </p>
-                <Button
-                  onClick={() => handleFiltersChange({ page: 1, limit: filters.limit })}
-                  variant="outline"
-                >
+                <Button onClick={() => handleFiltersChange({})} variant="outline">
                   Clear All Filters
                 </Button>
               </div>
