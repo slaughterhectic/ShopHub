@@ -1,10 +1,9 @@
-/* src/pages/CheckoutPage.tsx */
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { CreditCard, Lock, ArrowLeft } from 'lucide-react';
+import { CreditCard, Lock, ArrowLeft, Edit } from 'lucide-react';
 import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
 import { Button } from '../components/ui/Button';
@@ -13,10 +12,7 @@ import { ShippingAddress } from '../types';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
-/* -------------------------------------------------------------------------- */
-/*  Validation Schemas                                                        */
-/* -------------------------------------------------------------------------- */
-
+// Schemas remain the same
 const shippingSchema = yup.object({
   full_name: yup.string().required('Full name is required'),
   address_line_1: yup.string().required('Address is required'),
@@ -29,82 +25,92 @@ const shippingSchema = yup.object({
 });
 
 const paymentSchema = yup.object({
-  card_number: yup.string().required('Card number is required'),
-  expiry_date: yup.string().required('Expiry date is required'),
-  cvv: yup.string().required('CVV is required'),
+  card_number: yup
+    .string()
+    .required('Card number is required')
+    .matches(/^[0-9]{16}$/, 'Card number must be 16 digits'),
+  expiry_date: yup
+    .string()
+    .required('Expiry date is required')
+    .matches(/^(0[1-9]|1[0-2])\/?([0-9]{2})$/, 'Expiry date must be in MM/YY format'),
+  cvv: yup
+    .string()
+    .required('CVV is required')
+    .matches(/^[0-9]{3,4}$/, 'CVV must be 3 or 4 digits'),
   cardholder_name: yup.string().required('Cardholder name is required'),
 });
 
 type ShippingFormData = yup.InferType<typeof shippingSchema>;
 type PaymentFormData = yup.InferType<typeof paymentSchema>;
 
-/* -------------------------------------------------------------------------- */
-/*  Component                                                                 */
-/* -------------------------------------------------------------------------- */
-
 export const CheckoutPage: React.FC = () => {
-  /* ------------------------------ Local State ----------------------------- */
-  const [step, setStep] = useState<'shipping' | 'payment'>('shipping');
+  // FIX: Added 'review' to the step state and state for paymentData
+  const [step, setStep] = useState<'shipping' | 'payment' | 'review'>('shipping');
   const [shippingData, setShippingData] = useState<ShippingAddress | null>(null);
+  const [paymentData, setPaymentData] = useState<PaymentFormData | null>(null); // Added state for payment data
   const [loading, setLoading] = useState(false);
-
-  /* -------------------------------- Stores -------------------------------- */
+  
   const { items, total, clearCart } = useCartStore();
   const { user } = useAuthStore();
   const navigate = useNavigate();
 
-  /* ---------------------------- React‑Hook‑Form --------------------------- */
-  const shippingForm = useForm<ShippingFormData>({
+  // Corrected code
+  const shippingForm = useForm<ShippingFormData>({ // <--- Add this generic type
     resolver: yupResolver(shippingSchema),
-    defaultValues: { country: 'United States' },
+    defaultValues: {
+      country: 'United States',
+    },
   });
 
-  const paymentForm = useForm<PaymentFormData>({
+  const paymentForm = useForm<PaymentFormData>({ // <--- And add this one too
     resolver: yupResolver(paymentSchema),
   });
 
-  /* ---------------------------- Order Totals ------------------------------ */
   const subtotal = total;
   const shipping = total >= 50 ? 0 : 9.99;
-  const tax = Number((total * 0.08).toFixed(2));
-  const finalTotal = Number((subtotal + shipping + tax).toFixed(2));
-
-  /* ------------------------------------------------------------------------ */
-  /*  Handlers                                                                */
-  /* ------------------------------------------------------------------------ */
+  const tax = total * 0.08;
+  const finalTotal = subtotal + shipping + tax;
 
   const handleShippingSubmit = (data: ShippingFormData) => {
     setShippingData(data);
     setStep('payment');
   };
-
-  const handlePaymentSubmit = async (data: PaymentFormData) => {
-    if (!user || !shippingData) return;
-
+  
+  // FIX: This function now just validates payment and moves to the review step
+  const handlePaymentSubmit = (data: PaymentFormData) => {
+    setPaymentData(data);
+    setStep('review');
+  };
+  
+  // FIX: All order placement logic is moved into this new handler
+  const handlePlaceOrder = async () => {
+    if (!user || !shippingData || !paymentData) {
+      toast.error('Something went wrong. Please start the checkout process again.');
+      return;
+    }
+    
     setLoading(true);
-
+    
     try {
-      /* ---------------------------- Create Order --------------------------- */
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
           user_id: user.id,
           total_amount: finalTotal,
-          status: 'processing',
-          payment_status: 'paid',
-          shipping_address: shippingData,        // column type JSONB
+          status: 'pending',
+          payment_status: 'pending',
+          shipping_address: shippingData,
         })
         .select()
         .single();
 
       if (orderError) throw orderError;
 
-      /* -------------------------- Create Order Items ----------------------- */
-      const orderItems = items.map(({ product, quantity }) => ({
+      const orderItems = items.map(item => ({
         order_id: order.id,
-        product_id: product.id,
-        quantity,
-        price: product.price,
+        product_id: item.product_id,
+        quantity: item.quantity,
+        price: item.product.price,
       }));
 
       const { error: itemsError } = await supabase
@@ -113,22 +119,29 @@ export const CheckoutPage: React.FC = () => {
 
       if (itemsError) throw itemsError;
 
-      /* ----------------------- Simulate Payment Delay ---------------------- */
-      await new Promise((res) => setTimeout(res, 2000));
+      // Simulate payment processing
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
-      /* --------------------------- Clear & Navigate ------------------------ */
+      await supabase
+        .from('orders')
+        .update({ 
+          status: 'processing',
+          payment_status: 'paid' 
+        })
+        .eq('id', order.id);
+
       await clearCart();
+
       toast.success('Order placed successfully!');
       navigate(`/orders/${order.id}`);
-    } catch (err) {
-      console.error('Checkout error:', err);
+    } catch (error) {
+      console.error('Error placing order:', error);
       toast.error('Failed to place order. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  /* ---------------------------- Route Guards ----------------------------- */
   if (items.length === 0) {
     navigate('/cart');
     return null;
@@ -139,231 +152,187 @@ export const CheckoutPage: React.FC = () => {
     return null;
   }
 
-  /* ------------------------------------------------------------------------ */
-  /*  Render                                                                  */
-  /* ------------------------------------------------------------------------ */
-
-  const steps = ['shipping', 'payment'] as const;
+  const steps = ['shipping', 'payment', 'review'];
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Back */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <button
           onClick={() => navigate('/cart')}
-          className="mb-6 flex items-center text-gray-600 transition-colors hover:text-gray-900"
+          className="flex items-center text-gray-600 hover:text-gray-900 mb-6 transition-colors"
         >
-          <ArrowLeft className="mr-2 h-5 w-5" />
+          <ArrowLeft className="w-5 h-5 mr-2" />
           Back to Cart
         </button>
 
-        {/* Progress */}
-        <div className="mb-8 flex items-center justify-center space-x-8">
-          {steps.map((s, i) => (
-            <div key={s} className="flex items-center">
-              <div
-                className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium ${
-                  step === s || i < steps.indexOf(step)
+        {/* Progress Steps */}
+        <div className="mb-8">
+          <div className="flex items-center justify-center space-x-8">
+            {steps.map((stepName, index) => (
+              <div key={stepName} className="flex items-center">
+                <div className={`
+                  w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium
+                  ${step === stepName || (index < steps.indexOf(step))
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-300 text-gray-600'
-                }`}
-              >
-                {i + 1}
+                  }
+                `}>
+                  {index + 1}
+                </div>
+                <span className={`ml-2 text-sm font-medium capitalize ${
+                  step === stepName ? 'text-blue-600' : 'text-gray-500'
+                }`}>
+                  {stepName}
+                </span>
+                {index < steps.length - 1 && (
+                  <div className={`ml-8 w-16 h-0.5 ${
+                    index < steps.indexOf(step)
+                      ? 'bg-blue-600'
+                      : 'bg-gray-300'
+                  }`} />
+                )}
               </div>
-              <span
-                className={`ml-2 text-sm font-medium capitalize ${
-                  step === s ? 'text-blue-600' : 'text-gray-500'
-                }`}
-              >
-                {s}
-              </span>
-              {i < steps.length - 1 && (
-                <div
-                  className={`ml-8 h-0.5 w-16 ${
-                    i < steps.indexOf(step) ? 'bg-blue-600' : 'bg-gray-300'
-                  }`}
-                />
-              )}
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
         <div className="lg:grid lg:grid-cols-12 lg:gap-8">
-          {/* ------------------------------ Left ------------------------------ */}
+          {/* Main Content */}
           <div className="lg:col-span-8">
-            <div className="rounded-lg bg-white p-6 shadow-sm">
-              {/* -------------------------- Shipping -------------------------- */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
               {step === 'shipping' && (
-                <>
-                  <h2 className="mb-6 text-xl font-semibold text-gray-900">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-6">
                     Shipping Information
                   </h2>
-
-                  <form
-                    onSubmit={shippingForm.handleSubmit(handleShippingSubmit)}
-                    className="space-y-6"
-                  >
-                    <Input
-                      label="Full Name"
-                      error={shippingForm.formState.errors.full_name?.message}
-                      {...shippingForm.register('full_name')}
-                    />
-
-                    <Input
-                      label="Address Line 1"
-                      error={
-                        shippingForm.formState.errors.address_line_1?.message
-                      }
-                      {...shippingForm.register('address_line_1')}
-                    />
-
-                    <Input
-                      label="Address Line 2 (Optional)"
-                      error={
-                        shippingForm.formState.errors.address_line_2?.message
-                      }
-                      {...shippingForm.register('address_line_2')}
-                    />
-
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                      <Input
-                        label="City"
-                        error={shippingForm.formState.errors.city?.message}
-                        {...shippingForm.register('city')}
-                      />
-
-                      <Input
-                        label="State"
-                        error={shippingForm.formState.errors.state?.message}
-                        {...shippingForm.register('state')}
-                      />
+                  <form onSubmit={shippingForm.handleSubmit(handleShippingSubmit)} className="space-y-6">
+                    {/* Shipping Inputs remain the same... */}
+                    <Input label="Full Name" error={shippingForm.formState.errors.full_name?.message} {...shippingForm.register('full_name')} />
+                    <Input label="Address Line 1" error={shippingForm.formState.errors.address_line_1?.message} {...shippingForm.register('address_line_1')} />
+                    <Input label="Address Line 2 (Optional)" error={shippingForm.formState.errors.address_line_2?.message} {...shippingForm.register('address_line_2')} />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <Input label="City" error={shippingForm.formState.errors.city?.message} {...shippingForm.register('city')} />
+                      <Input label="State" error={shippingForm.formState.errors.state?.message} {...shippingForm.register('state')} />
                     </div>
-
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                      <Input
-                        label="Postal Code"
-                        error={
-                          shippingForm.formState.errors.postal_code?.message
-                        }
-                        {...shippingForm.register('postal_code')}
-                      />
-
-                      <Input
-                        label="Country"
-                        error={shippingForm.formState.errors.country?.message}
-                        {...shippingForm.register('country')}
-                      />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <Input label="Postal Code" error={shippingForm.formState.errors.postal_code?.message} {...shippingForm.register('postal_code')} />
+                      <Input label="Country" error={shippingForm.formState.errors.country?.message} {...shippingForm.register('country')} />
                     </div>
-
-                    <Input
-                      label="Phone Number"
-                      type="tel"
-                      error={shippingForm.formState.errors.phone?.message}
-                      {...shippingForm.register('phone')}
-                    />
-
+                    <Input label="Phone Number" type="tel" error={shippingForm.formState.errors.phone?.message} {...shippingForm.register('phone')} />
                     <Button type="submit" className="w-full">
                       Continue to Payment
                     </Button>
                   </form>
-                </>
+                </div>
               )}
 
-              {/* --------------------------- Payment -------------------------- */}
               {step === 'payment' && (
-                <>
-                  <h2 className="mb-6 text-xl font-semibold text-gray-900">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-6">
                     Payment Information
                   </h2>
-
-                  <form
-                    onSubmit={paymentForm.handleSubmit(handlePaymentSubmit)}
-                    className="space-y-6"
-                  >
-                    <Input
-                      label="Cardholder Name"
-                      error={
-                        paymentForm.formState.errors.cardholder_name?.message
-                      }
-                      {...paymentForm.register('cardholder_name')}
-                    />
-
-                    <Input
-                      label="Card Number"
-                      placeholder="1234 5678 9012 3456"
-                      icon={<CreditCard className="h-5 w-5 text-gray-400" />}
-                      error={paymentForm.formState.errors.card_number?.message}
-                      {...paymentForm.register('card_number')}
-                    />
-
+                  {/* FIX: Form now calls handlePaymentSubmit */}
+                  <form onSubmit={paymentForm.handleSubmit(handlePaymentSubmit)} className="space-y-6">
+                    {/* Payment Inputs remain the same... */}
+                    <Input label="Cardholder Name" error={paymentForm.formState.errors.cardholder_name?.message} {...paymentForm.register('cardholder_name')} />
+                    <Input label="Card Number" placeholder="1234567890123456" icon={<CreditCard className="w-5 h-5 text-gray-400" />} error={paymentForm.formState.errors.card_number?.message} {...paymentForm.register('card_number')} />
                     <div className="grid grid-cols-2 gap-6">
-                      <Input
-                        label="Expiry Date"
-                        placeholder="MM/YY"
-                        error={paymentForm.formState.errors.expiry_date?.message}
-                        {...paymentForm.register('expiry_date')}
-                      />
-
-                      <Input
-                        label="CVV"
-                        placeholder="123"
-                        error={paymentForm.formState.errors.cvv?.message}
-                        {...paymentForm.register('cvv')}
-                      />
+                      <Input label="Expiry Date" placeholder="MM/YY" error={paymentForm.formState.errors.expiry_date?.message} {...paymentForm.register('expiry_date')} />
+                      <Input label="CVV" placeholder="123" error={paymentForm.formState.errors.cvv?.message} {...paymentForm.register('cvv')} />
                     </div>
-
-                    <div className="rounded-lg bg-gray-50 p-4">
-                      <div className="flex items-center space-x-2 text-sm text-gray-600">
-                        <Lock className="h-4 w-4" />
-                        <span>Your payment information is secure</span>
-                      </div>
+                    <div className="bg-gray-50 rounded-lg p-4 flex items-center space-x-2 text-sm text-gray-600">
+                        <Lock className="w-4 h-4" />
+                        <span>Your payment information is secure and encrypted.</span>
                     </div>
-
                     <div className="flex space-x-4">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setStep('shipping')}
-                        className="flex-1"
-                      >
+                      <Button type="button" variant="outline" onClick={() => setStep('shipping')} className="flex-1">
                         Back to Shipping
                       </Button>
-                      <Button
-                        type="submit"
-                        loading={loading}
-                        className="flex-1"
-                      >
-                        Place Order
+                       {/* FIX: Button text and purpose changed */}
+                      <Button type="submit" className="flex-1">
+                        Continue to Review
                       </Button>
                     </div>
                   </form>
-                </>
+                </div>
+              )}
+              
+              {/* FIX: Added the entire review step UI */}
+              {step === 'review' && shippingData && paymentData && (
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-6">
+                    Review Your Order
+                  </h2>
+                  <div className="space-y-6">
+                    {/* Shipping Details Review */}
+                    <div className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex justify-between items-center">
+                        <h3 className="font-medium text-gray-900">Shipping To:</h3>
+                        <button onClick={() => setStep('shipping')} className="text-sm text-blue-600 hover:text-blue-800 flex items-center">
+                          <Edit className="w-4 h-4 mr-1" /> Change
+                        </button>
+                      </div>
+                      <div className="text-sm text-gray-600 mt-2">
+                        <p>{shippingData.full_name}</p>
+                        <p>{shippingData.address_line_1}</p>
+                        {shippingData.address_line_2 && <p>{shippingData.address_line_2}</p>}
+                        <p>{shippingData.city}, {shippingData.state} {shippingData.postal_code}</p>
+                      </div>
+                    </div>
+                    
+                    {/* Payment Details Review */}
+                    <div className="border border-gray-200 rounded-lg p-4">
+                       <div className="flex justify-between items-center">
+                        <h3 className="font-medium text-gray-900">Payment Method:</h3>
+                        <button onClick={() => setStep('payment')} className="text-sm text-blue-600 hover:text-blue-800 flex items-center">
+                          <Edit className="w-4 h-4 mr-1" /> Change
+                        </button>
+                      </div>
+                      <div className="text-sm text-gray-600 mt-2 flex items-center space-x-3">
+                         <CreditCard className="w-6 h-6 text-gray-500" />
+                         <div>
+                            <p>Card ending in **** {paymentData.card_number.slice(-4)}</p>
+                            <p>Expires {paymentData.expiry_date}</p>
+                         </div>
+                      </div>
+                    </div>
+
+                    {/* Final Action Buttons */}
+                    <div className="flex space-x-4 pt-4">
+                      <Button type="button" variant="outline" onClick={() => setStep('payment')} className="flex-1">
+                        Back to Payment
+                      </Button>
+                      <Button onClick={handlePlaceOrder} loading={loading} className="flex-1">
+                        {loading ? 'Placing Order...' : `Place Order & Pay $${finalTotal.toFixed(2)}`}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           </div>
 
-          {/* ----------------------------- Right ----------------------------- */}
-          <div className="mt-8 lg:col-span-4 lg:mt-0">
-            <div className="sticky top-8 rounded-lg bg-white p-6 shadow-sm">
-              <h2 className="mb-4 text-xl font-semibold text-gray-900">
+          {/* Order Summary */}
+          <div className="lg:col-span-4 mt-8 lg:mt-0">
+             <div className="bg-white rounded-lg shadow-sm p-6 sticky top-8">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">
                 Order Summary
               </h2>
 
-              {/* ----------------------- Item List ----------------------- */}
-              <div className="mb-6 space-y-4">
+              <div className="space-y-4 mb-6">
                 {items.map((item) => (
                   <div key={item.id} className="flex items-center space-x-3">
                     <img
                       src={item.product.image_url}
                       alt={item.product.name}
-                      className="h-12 w-12 rounded-lg object-cover"
+                      className="w-12 h-12 object-cover rounded-lg"
                     />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-gray-900">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">
                         {item.product.name}
                       </p>
                       <p className="text-sm text-gray-600">
-                        Qty:&nbsp;{item.quantity}
+                        Qty: {item.quantity}
                       </p>
                     </div>
                     <p className="text-sm font-medium text-gray-900">
@@ -372,52 +341,31 @@ export const CheckoutPage: React.FC = () => {
                   </div>
                 ))}
               </div>
-
-              {/* --------------------- Totals --------------------- */}
-              <div className="mb-6 space-y-3 border-t border-gray-200 pt-4">
-                <div className="flex justify-between">
+              
+              <div className="space-y-3 mb-6 border-t border-gray-200 pt-4">
+                <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Subtotal</span>
                   <span className="font-medium">${subtotal.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Shipping</span>
                   <span className="font-medium">
                     {shipping === 0 ? 'Free' : `$${shipping.toFixed(2)}`}
                   </span>
                 </div>
-                <div className="flex justify-between">
+                <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Tax</span>
                   <span className="font-medium">${tax.toFixed(2)}</span>
                 </div>
-                <div className="border-t border-gray-200 pt-3">
+              </div>
+              <div className="border-t border-gray-200 pt-4">
                   <div className="flex justify-between">
                     <span className="text-lg font-semibold">Total</span>
                     <span className="text-lg font-semibold">
                       ${finalTotal.toFixed(2)}
                     </span>
                   </div>
-                </div>
               </div>
-
-              {/* ------------- Display Shipping Preview ------------- */}
-              {shippingData && (
-                <div className="border-t border-gray-200 pt-4">
-                  <h3 className="mb-2 font-medium text-gray-900">Shipping To:</h3>
-                  <div className="text-sm text-gray-600">
-                    <p>{shippingData.full_name}</p>
-                    <p>{shippingData.address_line_1}</p>
-                    {shippingData.address_line_2 && (
-                      <p>{shippingData.address_line_2}</p>
-                    )}
-                    <p>
-                      {shippingData.city}, {shippingData.state}{' '}
-                      {shippingData.postal_code}
-                    </p>
-                    <p>{shippingData.country}</p>
-                    <p>Phone: {shippingData.phone}</p>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>
