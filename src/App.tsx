@@ -1,3 +1,5 @@
+// App.tsx
+
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
@@ -10,8 +12,11 @@ import { CartPage } from './pages/CartPage';
 import { CheckoutPage } from './pages/CheckoutPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
+import MyProfile from './pages/MyProfile';
+import MyOrders from './pages/MyOrders'; // 1. IMPORT THE COMPONENT
 import { useAuthStore } from './store/authStore';
 import { useCartStore } from './store/cartStore';
+import MyWishlist from './pages/MyWishlist';
 
 function App() {
   const { initialize, user } = useAuthStore();
@@ -42,6 +47,9 @@ function App() {
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/profile" element={<MyProfile />} />
+            <Route path="/orders" element={<MyOrders />} />
+            <Route path="/wishlist" element={<MyWishlist />} />
           </Routes>
         </main>
         <Footer />

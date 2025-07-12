@@ -111,7 +111,7 @@ export const HomePage: React.FC = () => {
             className="mt-10 flex flex-col sm:flex-row gap-4"
           >
             <Link to="/products">
-              <Button size="lg" className="bg-white text-indigo-700 hover:scale-105 hover:bg-gray-100 transition-all shadow-xl">
+              <Button size="lg" className="bg-black bg-opacity-20 text-white border border-white hover:bg-white hover:text-indigo-700 hover:border-indigo-700 transition-all">
                 Shop Now
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Button>

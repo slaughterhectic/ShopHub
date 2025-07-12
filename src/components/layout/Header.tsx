@@ -176,10 +176,20 @@ export const Header: React.FC = () => {
                 <div className="relative group ml-2">
                   <motion.button 
                     whileHover={{ scale: 1.05 }}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-50 to-purple-50 rounded-full hover:from-blue-100 hover:to-purple-100 transition-all"
+                    className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-blue-50 to-purple-50 rounded-full hover:from-blue-100 hover:to-purple-100 transition-all"
                   >
-                    <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
-                      {user.full_name.charAt(0).toUpperCase()}
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden bg-gray-200">
+                      {user.avatar_url ? (
+                        <img
+                          src={`${user.avatar_url}?t=${new Date().getTime()}`}
+                          alt={user.full_name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white font-semibold">
+                          {user.full_name.charAt(0).toUpperCase()}
+                        </div>
+                      )}
                     </div>
                     <span className="text-sm font-medium text-gray-700 max-w-[100px] truncate">
                       {user.full_name}
@@ -189,13 +199,28 @@ export const Header: React.FC = () => {
 
                   {/* Enhanced Dropdown */}
                   <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden"
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-300 overflow-hidden origin-top-right"
                   >
-                    <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-100">
-                      <p className="font-semibold text-gray-800">{user.full_name}</p>
-                      <p className="text-sm text-gray-600">{user.email}</p>
+                    <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-100 flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full flex items-center justify-center overflow-hidden bg-gray-200">
+                          {user.avatar_url ? (
+                            <img
+                              src={`${user.avatar_url}?t=${new Date().getTime()}`}
+                              alt={user.full_name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white font-semibold text-lg">
+                              {user.full_name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-800 truncate">{user.full_name}</p>
+                        <p className="text-sm text-gray-600 truncate">{user.email}</p>
+                      </div>
                     </div>
                     
                     <div className="p-2">
@@ -326,7 +351,7 @@ export const Header: React.FC = () => {
                       </Link>
                       <Link 
                         to="/cart" 
-                        className="flex items-center gap-3 px-4 py-                        3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"
+                        className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg transition-colors"
                         onClick={() => setIsMenuOpen(false)}
                       >
                         <ShoppingCart className="w-5 h-5" />
